@@ -1,21 +1,29 @@
 import os
+
 def get_files_info(working_directory, directory="."):
-    working_dir_abs = os.path.abspath(working_directory)
-    target_dir = os.path.normpath(os.path.join(working_dir_abs, directory))
-    if os.path.commonpath([working_dir_abs,target_dir]) != working_dir_abs:
-        return f'Error: Cannot list "{directory}" as it is outside the permitted working directory'
-    if not os.path.isdir(target_dir):
-        return f'Error: "{directory}" is not a directory'
+    try:
+        abs_working_dir = os.path.abspath(working_directory)
+        target_dir = os.path.normpath(os.path.join(abs_working_dir, directory))
+        
+        if os.path.commonpath([abs_working_dir, target_dir]) != abs_working_dir:
+            return f'Error: Cannot list "{directory}" as it is outside the permitted working directory'
+        
+        if not os.path.isdir(target_dir):
+            return f'Error: "{directory}" is not a directory'
+        
+        items = os.listdir(target_dir)
+        items.sort()
+        
+        output_lines = []
+        for item in items:
+            item_path = os.path.join(target_dir, item)
+            file_size = os.path.getsize(item_path)
+            is_dir = os.path.isdir(item_path)
+            # Make sure this line is finished correctly:
+            line = f"- {item}: file_size={file_size} bytes, is_dir={is_dir}"
+            output_lines.append(line)
+        
+        return "\n".join(output_lines)
 
-    items = os.listdir(target_dir)
-    items.sort()
-    outputlines = []
-    for item in items:
-        item_path = os.path.join(target_dir,item)
-        file_size = os.path.isdir(item_path)
-
-        line = f"- {item}: file_size={file_size} bytes, is_dir={is_dir}"
-        output_lines.append(line)
-    return "\n".join(output_lines)        
-except Exception as e:
-    return f"Error: {e}"
+    except Exception as e:  # <-- This line was erroring
+        return f"Error: {e}"
