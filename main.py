@@ -2,16 +2,20 @@ import os
 import argparse
 from dotenv import load_dotenv
 from google import genai
-
 from google.genai import types
+
+# 1. Import your new system prompt
+from prompts import system_prompt
 
 load_dotenv()
 
 def main():
     parser = argparse.ArgumentParser(description="Chatbot")
-    parser.add_argument("user_prompt", type=str, help="User prompt {user_prompt}")
+    parser.add_argument("user_prompt", type=str, help="User prompt")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
+    
+    # Wrap the user prompt in the correct Content type
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -20,19 +24,24 @@ def main():
     
     client = genai.Client(api_key=api_key)
     
-    # MATCH THIS STRING EXACTLY:
+    # 2. Update the call to include the system_instruction and temperature
+    # Update the model name here
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=messages
+        model="gemini-2.5-flash", # Use the current stable version
+        contents=messages,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0
+        )
     )
 
     if response.usage_metadata is None:
         raise RuntimeError("API request failed: usage_metadata is missing from the response.")
+    
     if args.verbose:
         print(f"User prompt: {args.user_prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-
 
     print("Response from Gemini:", response.text)
     print("Hello from agent!")
