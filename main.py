@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# Import our system prompt and our toolbox
+# 1. REMOVE the duplicate/conflicting imports. 
+# Keep only this one line for the toolbox:
+from call_function import available_functions, call_function
 from prompts import system_prompt
-from call_function import available_functions
 
 load_dotenv()
 
@@ -24,8 +25,7 @@ def main():
     
     client = genai.Client(api_key=api_key)
     
-    # 3. Call the Model with Tools and System Instructions
-    # Note: Using gemini-2.5-flash which is the stable standard for 2026
+    # 3. Call the Model
     model_id = "gemini-2.5-flash"
 
     try:
@@ -42,22 +42,35 @@ def main():
         print(f"Error calling Gemini: {e}")
         return
 
-    # 4. Process the Response
-    # Check if the AI wants to call a function or just talk
+    # 4. Process the Response (THE EXECUTION PHASE)
     if response.candidates and response.candidates[0].content.parts:
+        function_results = []
         found_function_call = False
         
         for part in response.candidates[0].content.parts:
             if part.function_call:
                 found_function_call = True
-                # Format: Calling function: name({'arg': 'val'})
-                print(f"Calling function: {part.function_call.name}({part.function_call.args})")
+                
+                # --- ACTUAL EXECUTION HAPPENS HERE ---
+                function_call_result = call_function(part.function_call, verbose=args.verbose)
+                
+                # Validation Ceremony
+                if not function_call_result.parts:
+                    raise Exception("Function call returned no parts")
+                if function_call_result.parts[0].function_response is None:
+                    raise Exception("Function call returned no function_response")
+                if function_call_result.parts[0].function_response.response is None:
+                    raise Exception("Function call returned no response data")
+
+                # Store the result part for later use
+                function_results.append(function_call_result.parts[0])
+
+                if args.verbose:
+                    print(f"-> {function_call_result.parts[0].function_response.response}")
         
-        # If no function calls were found in the parts, print the text response
         if not found_function_call:
             print("Response from Gemini:", response.text)
     else:
-        # Fallback for empty responses
         print("Response from Gemini:", response.text)
 
     # 5. Verbose Output (Optional)
